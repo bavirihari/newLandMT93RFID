@@ -1,6 +1,6 @@
 name: uhf_rfid_scanner
 description: "Flutter plugin for UHF RFID handheld scanners. Supports NewLand MT93 with Urovo DT610 coming soon. Features tag scanning, power control, and SGTIN-96 to EAN-13 decoding."
-version: 1.0.1
+version: 1.0.2
 repository: https://github.com/bavirihari/newLandMT93RFID
 issue_tracker: https://github.com/bavirihari/newLandMT93RFID/issues
 topics:
