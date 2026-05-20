@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:rfid/rfid.dart';
+import 'package:uhf_rfid_scanner/rfid.dart';
 import 'dart:async';
 
 void main() {
@@ -28,19 +28,15 @@ class RfidScannerPage extends StatefulWidget {
 }
 
 class _RfidScannerPageState extends State<RfidScannerPage> {
-  // Instance of our plugin
   final _rfidPlugin = Rfid();
 
-  // State variables
   bool _isConnected = false;
   bool _isScanning = false;
 
-  // Data storage: Map avoids duplicates, Key = EPC
-  final Map<String, UHFTag> _scannedTags = {};
+  final Map<String, UHFTag> _scannedTags = {}; // Key = EPC, avoids duplicates
   StreamSubscription? _streamSubscription;
 
-  // Configuration
-  double _powerLevel = 30.0; // Default 30 dBm
+  double _powerLevel = 30.0; // default 30 dBm
 
   @override
   void dispose() {
@@ -49,8 +45,6 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
     _rfidPlugin.disconnect();
     super.dispose();
   }
-
-  // --- ACTIONS ---
 
   Future<void> _connect() async {
     try {
@@ -66,10 +60,10 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
 
   Future<void> _disconnect() async {
     try {
-      await _stopScan(); // Always stop scanning before disconnecting
+      await _stopScan();
       final success = await _rfidPlugin.disconnect();
       setState(() {
-        _isConnected = !success; // If success is true, isConnected becomes false
+        _isConnected = !success;
       });
       _showSnackbar("Disconnected");
     } catch (e) {
@@ -83,24 +77,20 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
       return;
     }
 
-    // Cancel any existing subscription before starting a new one
     await _streamSubscription?.cancel();
     _streamSubscription = null;
 
-    // Clear list for new scan session
     setState(() {
       _scannedTags.clear();
       _isScanning = true;
     });
 
     try {
-      // 1. Subscribe to stream (stream is cached internally, safe to call multiple times)
       _streamSubscription = _rfidPlugin.onTagsRead.listen(
         (List<UHFTag> incomingTags) {
           print('incomingTags: ${incomingTags.length} tags received');
           setState(() {
             for (var tag in incomingTags) {
-              // Update or add tag to our map
               _scannedTags[tag.epc] = tag;
             }
           });
@@ -111,7 +101,6 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
         },
       );
 
-      // 2. Trigger hardware scan
       final success = await _rfidPlugin.startScan();
       if (!success) {
         setState(() => _isScanning = false);
@@ -158,39 +147,59 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
   }
 
   void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), duration: const Duration(milliseconds: 800)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(milliseconds: 800),
+      ),
+    );
   }
-
-  // --- UI BUILDER ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('MT93-U RFID Scanner'),
-        actions: [IconButton(icon: const Icon(Icons.delete_sweep), onPressed: _clearData, tooltip: "Clear Data")],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            onPressed: _clearData,
+            tooltip: "Clear Data",
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // 1. Control Panel
           _buildControlPanel(),
 
           const Divider(height: 1),
 
-          // 2. Stats
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
             color: Colors.grey[200],
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Total Tags: ${_scannedTags.length}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  "Total Tags: ${_scannedTags.length}",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
                 if (_isScanning)
                   const Row(
                     children: [
-                      SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
                       SizedBox(width: 8),
-                      Text("Scanning...", style: TextStyle(color: Colors.green)),
+                      Text(
+                        "Scanning...",
+                        style: TextStyle(color: Colors.green),
+                      ),
                     ],
                   )
                 else
@@ -199,7 +208,6 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
             ),
           ),
 
-          // 3. List of Tags
           Expanded(
             child: _scannedTags.isEmpty
                 ? const Center(child: Text("No tags scanned"))
@@ -225,7 +233,6 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            // Row 1: Connection
             Row(
               children: [
                 Expanded(
@@ -233,7 +240,10 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
                     onPressed: _isConnected ? null : _connect,
                     icon: const Icon(Icons.bluetooth_connected),
                     label: const Text("Connect"),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -248,15 +258,19 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
             ),
             const SizedBox(height: 10),
 
-            // Row 2: Scanning
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: (_isConnected && !_isScanning) ? _startScan : null,
+                    onPressed: (_isConnected && !_isScanning)
+                        ? _startScan
+                        : null,
                     icon: const Icon(Icons.play_arrow),
                     label: const Text("Start Scan"),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -265,7 +279,10 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
                     onPressed: (_isConnected && _isScanning) ? _stopScan : null,
                     icon: const Icon(Icons.stop),
                     label: const Text("Stop Scan"),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -273,10 +290,12 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
 
             const SizedBox(height: 10),
 
-            // Row 3: Power Slider
             Row(
               children: [
-                const Text("Power: ", style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  "Power: ",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 Text("${_powerLevel.toInt()} dBm"),
                 Expanded(
                   child: Slider(
@@ -285,7 +304,9 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
                     max: 33,
                     divisions: 28,
                     label: "${_powerLevel.toInt()}",
-                    onChanged: _isConnected ? (val) => setState(() => _powerLevel = val) : null,
+                    onChanged: _isConnected
+                        ? (val) => setState(() => _powerLevel = val)
+                        : null,
                     onChangeEnd: (val) => _setPower(val),
                   ),
                 ),
@@ -303,7 +324,10 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: _getRssiColor(tag.rssi),
-          child: Text("${tag.rssi}", style: const TextStyle(color: Colors.white, fontSize: 10)),
+          child: Text(
+            "${tag.rssi}",
+            style: const TextStyle(color: Colors.white, fontSize: 10),
+          ),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,7 +339,11 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
                   const SizedBox(width: 4),
                   Text(
                     "EAN: ${tag.ean}",
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Colors.green,
+                    ),
                   ),
                 ],
               ),
@@ -333,12 +361,18 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
         subtitle: tag.tid != null ? Text("TID: ${tag.tid}") : null,
         trailing: Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text("Count", style: TextStyle(fontSize: 10)),
-              Text("${tag.readCount}", style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                "${tag.readCount}",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ],
           ),
         ),
@@ -346,14 +380,7 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
     );
   }
 
-  // Visual helper for signal strength
   Color _getRssiColor(int rssi) {
-    // RSSI is usually negative or near zero.
-    // Newland might return positive values (dBm * 10 or similar).
-    // Assuming standard negative RSSI for this logic, but adjusting just in case.
-
-    // If logic: -30 (strong) to -90 (weak)
-    // If Newland returns raw positives (e.g. 50-100%):
     double val = rssi.toDouble();
     if (val.abs() < 50) return Colors.green;
     if (val.abs() < 70) return Colors.orange;

@@ -1,5 +1,5 @@
 // Quick test to verify SGTIN-96 decoding against known EPC → EAN pairs
-import 'package:rfid/rfid.dart';
+import 'package:uhf_rfid_scanner/rfid.dart';
 
 void main() {
   final testCases = {

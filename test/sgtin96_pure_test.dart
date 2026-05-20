@@ -2,15 +2,24 @@
 
 class Sgtin96Decoder {
   static const List<List<int>> _partitionTable = [
-    [40, 12, 4, 1], [37, 11, 7, 2], [34, 10, 10, 3],
-    [30, 9, 14, 4], [27, 8, 17, 5], [24, 7, 20, 6], [20, 6, 24, 7],
+    [40, 12, 4, 1],
+    [37, 11, 7, 2],
+    [34, 10, 10, 3],
+    [30, 9, 14, 4],
+    [27, 8, 17, 5],
+    [24, 7, 20, 6],
+    [20, 6, 24, 7],
   ];
 
   static String? decode(String epcHex) {
     epcHex = epcHex.replaceAll(' ', '').toUpperCase();
     if (epcHex.length != 24) return null;
     final BigInt epc;
-    try { epc = BigInt.parse(epcHex, radix: 16); } catch (_) { return null; }
+    try {
+      epc = BigInt.parse(epcHex, radix: 16);
+    } catch (_) {
+      return null;
+    }
     final int header = _extractBits(epc, 95, 88);
     if (header != 0x30) return null;
     final int partition = _extractBits(epc, 84, 82);
@@ -21,12 +30,22 @@ class Sgtin96Decoder {
     final itemRefDigits = _partitionTable[partition][3];
     final int companyPrefix = _extractBits(epc, 81, 81 - prefixBits + 1);
     final int itemRefStart = 81 - prefixBits;
-    final int itemRef = _extractBits(epc, itemRefStart, itemRefStart - itemRefBits + 1);
+    final int itemRef = _extractBits(
+      epc,
+      itemRefStart,
+      itemRefStart - itemRefBits + 1,
+    );
     final int indicatorDivisor = _pow10(itemRefDigits - 1);
     final int indicator = itemRef ~/ indicatorDivisor;
     final int actualItemRef = itemRef % indicatorDivisor;
-    final String prefixStr = companyPrefix.toString().padLeft(prefixDigits, '0');
-    final String itemRefStr = actualItemRef.toString().padLeft(itemRefDigits - 1, '0');
+    final String prefixStr = companyPrefix.toString().padLeft(
+      prefixDigits,
+      '0',
+    );
+    final String itemRefStr = actualItemRef.toString().padLeft(
+      itemRefDigits - 1,
+      '0',
+    );
     final String gtinWithoutCheck = '$indicator$prefixStr$itemRefStr';
     if (gtinWithoutCheck.length != 13) return null;
     final int checkDigit = _computeCheckDigit(gtinWithoutCheck.substring(1));
@@ -48,7 +67,11 @@ class Sgtin96Decoder {
     return (10 - (sum % 10)) % 10;
   }
 
-  static int _pow10(int exp) { int r = 1; for (int i = 0; i < exp; i++) r *= 10; return r; }
+  static int _pow10(int exp) {
+    int r = 1;
+    for (int i = 0; i < exp; i++) r *= 10;
+    return r;
+  }
 }
 
 void main() {
@@ -67,8 +90,13 @@ void main() {
   int passed = 0, failed = 0;
   testCases.forEach((epc, expectedEan) {
     final decoded = Sgtin96Decoder.decode(epc);
-    if (decoded == expectedEan) { print('✓ $epc → $decoded'); passed++; }
-    else { print('✗ $epc → $decoded (expected $expectedEan)'); failed++; }
+    if (decoded == expectedEan) {
+      print('✓ $epc → $decoded');
+      passed++;
+    } else {
+      print('✗ $epc → $decoded (expected $expectedEan)');
+      failed++;
+    }
   });
   print('\n$passed passed, $failed failed');
 }

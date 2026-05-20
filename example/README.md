@@ -1,16 +1,10 @@
-# rfid_example
+# UHF RFID Scanner Example
 
-Demonstrates how to use the rfid plugin.
+Example app demonstrating the `uhf_rfid_scanner` plugin with NewLand MT93 hardware.
 
-## Getting Started
+Run on a physical NewLand MT93 device:
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+cd example
+flutter run
+```

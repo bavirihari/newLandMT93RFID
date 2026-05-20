@@ -41,7 +41,6 @@ android {
     sourceSets {
         main.java.srcDirs += "src/main/kotlin"
         test.java.srcDirs += "src/test/kotlin"
-        // Ensure standard path for native .so libraries is recognized
         main.jniLibs.srcDirs = ['src/main/jniLibs']
     }
 
@@ -62,20 +61,8 @@ android {
     }
 }
 
-// DEPENDENCIES MUST BE OUTSIDE THE ANDROID BLOCK
 dependencies {
-    // 1. PRIMARY: Absolute paths to ensure Gradle finds them immediately
-    // These paths match exactly what you provided.
-//    compileOnly files('/Users/haribaviri/StudioProjects/intrack_2.0/rfid/android/libs/aidc_uhf_sdk.jar')
-//    compileOnly files('/Users/haribaviri/StudioProjects/intrack_2.0/rfid/android/libs/nls_uhf_lib.jar')
-//
-//    implementation files('/Users/haribaviri/StudioProjects/intrack_2.0/rfid/android/libs/aidc_uhf_sdk.jar')
-//    implementation files('/Users/haribaviri/StudioProjects/intrack_2.0/rfid/android/libs/nls_uhf_lib.jar')
-
-    // 2. SECONDARY: Standard fallback (good practice to keep)
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-
-    // 3. Testing dependencies (Standard Flutter setup)
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
 }

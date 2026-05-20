@@ -1,8 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rfid/rfid.dart';
-import 'package:rfid/rfid_platform_interface.dart';
-import 'package:rfid/rfid_method_channel.dart';
+import 'package:uhf_rfid_scanner/rfid.dart';
+import 'package:uhf_rfid_scanner/rfid_platform_interface.dart';
+import 'package:uhf_rfid_scanner/rfid_method_channel.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 class MockRfidPlatform with MockPlatformInterfaceMixin implements RfidPlatform {
@@ -20,7 +20,6 @@ void main() {
   });
 
   test('getPlatformVersion', () async {
-    // Rfid calls MethodChannel directly, so mock at the channel level
     const MethodChannel channel = MethodChannel('rfid');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
