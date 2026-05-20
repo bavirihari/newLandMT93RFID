@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
@@ -26,6 +27,10 @@ import com.nlscan.uhf.lib.TagInfo
 /** RfidPlugin */
 class RfidPlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler {
 
+    companion object {
+        private const val TAG = "RfidPlugin"
+    }
+
     private lateinit var channel: MethodChannel
     private lateinit var eventChannel: EventChannel
 
@@ -33,8 +38,26 @@ class RfidPlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler 
     private var mUHFMgr: UHFManager? = null
     private var eventSink: EventChannel.EventSink? = null
 
+    // Handler to ensure we post events on the main thread (required by Flutter EventSink)
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     // The Action String found in InventoryFragment.java
     private val ACTION_UHF_RESULT_SEND = "android.intent.action.UHF_RESULT_SEND"
+
+    // --- Listener-based approach (primary, more reliable than broadcast) ---
+    private val tagInventoryListener = object : UHFManager.UHFTagInventoryListener() {
+        override fun onReadingResult(tagInfos: Array<out TagInfo>?) {
+            Log.d(TAG, "onReadingResult via LISTENER: ${tagInfos?.size ?: 0} tags")
+            if (tagInfos != null && tagInfos.isNotEmpty()) {
+                val tagsList = processTagInfos(tagInfos)
+                if (tagsList.isNotEmpty()) {
+                    mainHandler.post {
+                        eventSink?.success(tagsList)
+                    }
+                }
+            }
+        }
+    }
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         context = flutterPluginBinding.applicationContext
@@ -53,6 +76,7 @@ class RfidPlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler 
             } catch (e: Exception) {
                 // SDK not available on this device (missing .so / not MT93)
                 // mUHFMgr stays null — individual methods will return errors
+                Log.e(TAG, "Failed to get UHFManager instance", e)
             }
         }
 
@@ -65,6 +89,7 @@ class RfidPlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler 
                     }
                     // FIX: powerOn returns READER_STATE, not Boolean
                     val state = mUHFMgr?.powerOn()
+                    Log.d(TAG, "powerOn state: $state")
 
                     if (state == UHFReader.READER_STATE.OK_ERR) {
                         Thread.sleep(100) // Stabilize hardware
@@ -79,11 +104,13 @@ class RfidPlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler 
             "disconnect" -> {
                 // FIX: powerOff returns READER_STATE
                 val state = mUHFMgr?.powerOff()
+                Log.d(TAG, "powerOff state: $state")
                 result.success(state == UHFReader.READER_STATE.OK_ERR)
             }
             "startScan" -> {
                 mUHFMgr?.setParam(UHFParams.INV_CLEAR_CACHE.KEY, UHFParams.INV_CLEAR_CACHE.PARAM_INV_CLEAR_CACHE, "1")
                 val state = mUHFMgr?.startTagInventory()
+                Log.d(TAG, "startTagInventory state: $state")
                 if (state == UHFReader.READER_STATE.OK_ERR) {
                     result.success(true)
                 } else {
@@ -92,6 +119,7 @@ class RfidPlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler 
             }
             "stopScan" -> {
                 val state = mUHFMgr?.stopTagInventory()
+                Log.d(TAG, "stopTagInventory state: $state")
                 result.success(state == UHFReader.READER_STATE.OK_ERR)
             }
             "setPower" -> {
@@ -130,9 +158,61 @@ class RfidPlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler 
         }
     }
 
+    /**
+     * Converts an array of TagInfo objects into a list of maps for Flutter consumption.
+     */
+    private fun processTagInfos(tagInfos: Array<out TagInfo>): ArrayList<Map<String, Any>> {
+        val tagsList = ArrayList<Map<String, Any>>()
+
+        for (tag in tagInfos) {
+            try {
+                // Convert bytes to Hex String using SDK utility
+                // We use a safe copyOfRange to avoid index errors
+                val length = tag.Epclen.toInt()
+                val epcBytes = if (tag.EpcId != null && tag.EpcId.size >= length && length > 0) {
+                    tag.EpcId.copyOfRange(0, length)
+                } else if (tag.EpcId != null) {
+                    tag.EpcId
+                } else {
+                    continue // Skip tags with null EPC
+                }
+
+                val epcHex = UHFReader.bytes_Hexstr(epcBytes)
+                if (epcHex.isNullOrEmpty()) continue
+
+                val tagMap = HashMap<String, Any>()
+                tagMap["epc"] = epcHex
+                tagMap["rssi"] = tag.RSSI
+                tagMap["readCount"] = tag.ReadCnt
+
+                if (tag.EmbededDatalen > 0 && tag.EmbededData != null) {
+                    val tidLen = tag.EmbededDatalen.toInt()
+                    val tidBytes = if (tag.EmbededData.size >= tidLen) {
+                        tag.EmbededData.copyOfRange(0, tidLen)
+                    } else {
+                        tag.EmbededData
+                    }
+                    val tidHex = UHFReader.bytes_Hexstr(tidBytes)
+                    if (!tidHex.isNullOrEmpty()) {
+                        tagMap["tid"] = tidHex
+                    }
+                }
+
+                tagsList.add(tagMap)
+                Log.d(TAG, "Tag: epc=$epcHex, rssi=${tag.RSSI}, count=${tag.ReadCnt}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing tag", e)
+            }
+        }
+
+        return tagsList
+    }
+
+    // --- Broadcast receiver (fallback) ---
     private val uhfReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ACTION_UHF_RESULT_SEND) {
+                Log.d(TAG, "onReceive via BROADCAST")
                 val tagInfos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableArrayExtra(UHFManager.EXTRA_TAG_INFO, TagInfo::class.java)
                 } else {
@@ -141,42 +221,15 @@ class RfidPlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler 
                 }
 
                 if (tagInfos != null && eventSink != null) {
-                    val tagsList = ArrayList<Map<String, Any>>()
-
-                    for (parcel in tagInfos) {
-                        val tag = parcel as? TagInfo ?: continue
-
-                        // Convert bytes to Hex String using SDK utility
-                        // We use a safe copyOfRange to avoid index errors
-                        val length = tag.Epclen.toInt()
-                        val epcBytes = if (tag.EpcId.size >= length) {
-                            tag.EpcId.copyOfRange(0, length)
-                        } else {
-                            tag.EpcId
-                        }
-
-                        val epcHex = UHFReader.bytes_Hexstr(epcBytes)
-
-                        val tagMap = HashMap<String, Any>()
-                        tagMap["epc"] = epcHex
-                        tagMap["rssi"] = tag.RSSI
-                        tagMap["readCount"] = tag.ReadCnt
-
-                        if (tag.EmbededDatalen > 0) {
-                            val tidLen = tag.EmbededDatalen.toInt()
-                            val tidBytes = if (tag.EmbededData.size >= tidLen) {
-                                tag.EmbededData.copyOfRange(0, tidLen)
-                            } else {
-                                tag.EmbededData
-                            }
-                            tagMap["tid"] = UHFReader.bytes_Hexstr(tidBytes)
-                        }
-
-                        tagsList.add(tagMap)
-                    }
+                    val castedTags = tagInfos.filterIsInstance<TagInfo>().toTypedArray()
+                    val tagsList = processTagInfos(castedTags)
 
                     if (tagsList.isNotEmpty()) {
-                        eventSink?.success(tagsList)
+                        // BroadcastReceiver.onReceive runs on main thread by default,
+                        // but post via handler to be safe
+                        mainHandler.post {
+                            eventSink?.success(tagsList)
+                        }
                     }
                 }
             }
@@ -184,26 +237,59 @@ class RfidPlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler 
     }
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+        Log.d(TAG, "onListen: EventSink registered")
         this.eventSink = events
-        val filter = IntentFilter(ACTION_UHF_RESULT_SEND)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context?.registerReceiver(uhfReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context?.registerReceiver(uhfReceiver, filter)
+
+        // PRIMARY: Register the direct listener (AIDL callback — most reliable)
+        try {
+            mUHFMgr?.registerTagInventoryListener(tagInventoryListener)
+            Log.d(TAG, "Registered TagInventoryListener successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register TagInventoryListener", e)
+        }
+
+        // FALLBACK: Also register the broadcast receiver
+        try {
+            val filter = IntentFilter(ACTION_UHF_RESULT_SEND)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Use RECEIVER_EXPORTED since UHF service may run in a separate process
+                context?.registerReceiver(uhfReceiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                context?.registerReceiver(uhfReceiver, filter)
+            }
+            Log.d(TAG, "Registered BroadcastReceiver successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register BroadcastReceiver", e)
         }
     }
 
     override fun onCancel(arguments: Any?) {
+        Log.d(TAG, "onCancel: EventSink cleared")
         this.eventSink = null
+
+        // Unregister the direct listener
+        try {
+            mUHFMgr?.unRegisterTagInventoryListener(tagInventoryListener)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to unregister TagInventoryListener", e)
+        }
+
+        // Unregister the broadcast receiver
         try {
             context?.unregisterReceiver(uhfReceiver)
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to unregister BroadcastReceiver", e)
         }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
         eventChannel.setStreamHandler(null)
+
+        try {
+            mUHFMgr?.unRegisterTagInventoryListener(tagInventoryListener)
+        } catch (_: Exception) {}
+
         mUHFMgr?.powerOff()
     }
 }

@@ -83,6 +83,10 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
       return;
     }
 
+    // Cancel any existing subscription before starting a new one
+    await _streamSubscription?.cancel();
+    _streamSubscription = null;
+
     // Clear list for new scan session
     setState(() {
       _scannedTags.clear();
@@ -90,15 +94,22 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
     });
 
     try {
-      // 1. Subscribe to stream
-      _streamSubscription = _rfidPlugin.onTagsRead.listen((List<UHFTag> incomingTags) {
-        setState(() {
-          for (var tag in incomingTags) {
-            // Update or add tag to our map
-            _scannedTags[tag.epc] = tag;
-          }
-        });
-      });
+      // 1. Subscribe to stream (stream is cached internally, safe to call multiple times)
+      _streamSubscription = _rfidPlugin.onTagsRead.listen(
+        (List<UHFTag> incomingTags) {
+          print('incomingTags: ${incomingTags.length} tags received');
+          setState(() {
+            for (var tag in incomingTags) {
+              // Update or add tag to our map
+              _scannedTags[tag.epc] = tag;
+            }
+          });
+        },
+        onError: (error) {
+          print('Stream error: $error');
+          _showSnackbar("Stream error: $error");
+        },
+      );
 
       // 2. Trigger hardware scan
       final success = await _rfidPlugin.startScan();
@@ -147,9 +158,7 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
   }
 
   void _showSnackbar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), duration: const Duration(milliseconds: 800)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), duration: const Duration(milliseconds: 800)));
   }
 
   // --- UI BUILDER ---
@@ -175,10 +184,7 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Total Tags: ${_scannedTags.length}",
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
+                Text("Total Tags: ${_scannedTags.length}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 if (_isScanning)
                   const Row(
                     children: [
@@ -299,9 +305,30 @@ class _RfidScannerPageState extends State<RfidScannerPage> {
           backgroundColor: _getRssiColor(tag.rssi),
           child: Text("${tag.rssi}", style: const TextStyle(color: Colors.white, fontSize: 10)),
         ),
-        title: Text(
-          tag.epc,
-          style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (tag.ean != null)
+              Row(
+                children: [
+                  const Icon(Icons.qr_code, size: 16, color: Colors.green),
+                  const SizedBox(width: 4),
+                  Text(
+                    "EAN: ${tag.ean}",
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green),
+                  ),
+                ],
+              ),
+            Text(
+              tag.epc,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
+                fontSize: tag.ean != null ? 11 : 14,
+                color: tag.ean != null ? Colors.grey[600] : Colors.black,
+              ),
+            ),
+          ],
         ),
         subtitle: tag.tid != null ? Text("TID: ${tag.tid}") : null,
         trailing: Container(
