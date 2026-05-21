@@ -1,3 +1,8 @@
+## 2.0.0
+
+* **BREAKING:** Changed Android package from `com.apnt.rfid` to `com.baviri.uhfrfid`
+* If you reference the plugin package in ProGuard rules or native code, update to `com.baviri.uhfrfid`
+
 ## 1.0.0
 
 * Initial stable release

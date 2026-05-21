@@ -2,4 +2,4 @@
 -keep class com.nlscan.uhf.lib.** { *; }
 
 # Keep the plugin class itself to avoid MethodChannel lookup issues
--keep class com.apnt.rfid.** { *; }
+-keep class com.baviri.uhfrfid.** { *; }

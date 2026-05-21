@@ -1,4 +1,4 @@
-package com.apnt.rfid
+package com.baviri.uhfrfid
 
 import android.content.BroadcastReceiver
 import android.content.Context

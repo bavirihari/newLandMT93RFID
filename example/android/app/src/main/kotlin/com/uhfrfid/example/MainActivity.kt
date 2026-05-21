@@ -1,4 +1,4 @@
-package com.apnt.rfid_example
+package com.uhfrfid.example
 
 import io.flutter.embedding.android.FlutterActivity
 

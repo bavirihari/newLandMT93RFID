@@ -1,4 +1,4 @@
-package com.apnt.rfid
+package com.baviri.uhfrfid
 
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
