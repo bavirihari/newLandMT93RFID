@@ -27,7 +27,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  uhf_rfid_scanner: ^1.0.2
+  uhf_rfid_scanner: ^2.0.0
 ```
 
 Or install via command line:
