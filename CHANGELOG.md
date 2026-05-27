@@ -1,3 +1,11 @@
+## 3.0.0
+
+* **NEW:** Added Urovo DT610 UHF RFID support
+* Auto-detects device manufacturer at runtime (NewLand vs Urovo) — no configuration needed
+* Refactored Android plugin to use a Strategy pattern (`RfidHandler` interface)
+* Added `URFIDLibrary-v2.5.0718.aar` and `platform_sdk_v3.1.221124.jar` for Urovo SDK
+* No changes to the Dart API — fully backward compatible
+
 ## 2.0.0
 
 * **BREAKING:** Changed Android package from `com.apnt.rfid` to `com.baviri.uhfrfid`

@@ -1,6 +1,6 @@
 /// Flutter plugin for UHF RFID handheld scanners.
 ///
-/// Supports NewLand MT93 (Urovo DT610 coming soon). Provides methods to
+/// Supports NewLand MT93 and Urovo DT610. Provides methods to
 /// connect, scan UHF tags, adjust antenna power, and receive tag data
 /// via streams.
 library;

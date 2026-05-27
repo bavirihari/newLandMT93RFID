@@ -11,7 +11,9 @@ Flutter plugin for UHF RFID handheld scanners. Communicate with RFID hardware ov
 | Device | Status |
 |---|---|
 | NewLand MT93 | ✅ Supported |
-| Urovo DT610 | 🔜 Coming Soon |
+| Urovo DT610 | ✅ Supported |
+
+> **Auto-detection:** The plugin automatically detects the device manufacturer at runtime and uses the correct RFID SDK. No configuration needed — just call `connect()` and it works on both devices.
 
 ## Features
 
@@ -27,7 +29,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  uhf_rfid_scanner: ^2.0.0
+  uhf_rfid_scanner: ^3.0.0
 ```
 
 Or install via command line:
@@ -110,9 +112,9 @@ await rfid.disconnect();
 
 ## Requirements
 
-- Physical **NewLand MT93** device (RFID hardware is not available on emulators)
+- Physical **NewLand MT93** or **Urovo DT610** device (RFID hardware is not available on emulators)
 - Android API 24+
-- The NewLand UHF SDK libraries are bundled with this plugin
+- The NewLand and Urovo UHF SDK libraries are bundled with this plugin
 
 ## Contributing
 
